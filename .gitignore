@@ -1,0 +1,15 @@
+# 1. 개인 인증키 비밀 파일 (깃허브 유출 방지)
+.env
+.env.local
+*.env
+
+# 2. 로컬 컴퓨터 전용 테스트 파일 (Vercel 빌드 충돌 원천 방지)
+server.js
+실행하기.bat
+run.bat
+
+# 3. 기타 임시/캐시 파일
+node_modules/
+.vercel/
+.DS_Store
+Thumbs.db
