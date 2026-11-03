@@ -1,0 +1,10 @@
+{
+  "name": "dust",
+  "version": "1.0.0",
+  "description": "실시간 대기오염 공기신호등 및 공기지도 웹앱",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
+
