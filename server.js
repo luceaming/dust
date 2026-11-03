@@ -21,20 +21,16 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-// MIME 타입 매핑 정의
-const MIME_TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.ico': 'image/x-icon',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.svg': 'image/svg+xml'
+// [2] Vercel 번들러(nft)가 정적 파일들을 배포 패키지에 확실히 포함하도록 명시적 경로 선언
+const STATIC_MAP = {
+  '/': { file: path.join(__dirname, 'index.html'), type: 'text/html; charset=utf-8' },
+  '/index.html': { file: path.join(__dirname, 'index.html'), type: 'text/html; charset=utf-8' },
+  '/style.css': { file: path.join(__dirname, 'style.css'), type: 'text/css; charset=utf-8' },
+  '/script.js': { file: path.join(__dirname, 'script.js'), type: 'application/javascript; charset=utf-8' }
 };
 
 /**
- * [2] Vercel 서버리스 및 로컬 HTTP 공용 요청 핸들러 함수
+ * [3] Vercel 서버리스 및 로컬 HTTP 공용 요청 핸들러 함수
  * @param {http.IncomingMessage} req
  * @param {http.ServerResponse} res
  */
@@ -44,7 +40,7 @@ async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
 
   const parsedUrl = url.parse(req.url, true);
-  const pathname = parsedUrl.pathname;
+  const pathname = parsedUrl.pathname.replace(/\/+$/, '') || '/';
 
   // -------------------------------------------------------------
   // [A] 에어코리아 대기오염 API 엔드포인트 (/api/dust)
@@ -110,34 +106,29 @@ async function handler(req, res) {
   }
 
   // -------------------------------------------------------------
-  // [B] 정적 웹 파일 서빙 (index.html, style.css, script.js 등)
+  // [B] 정적 웹 파일 서빙 (index.html, style.css, script.js)
   // -------------------------------------------------------------
-  let reqPath = pathname === '/' ? '/index.html' : pathname;
-  const safePath = path.normalize(path.join(__dirname, reqPath));
+  const staticTarget = STATIC_MAP[pathname] || STATIC_MAP['/' + path.basename(pathname)];
 
-  if (!safePath.startsWith(__dirname)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-    return res.end('403 Forbidden');
+  if (staticTarget && fs.existsSync(staticTarget.file)) {
+    try {
+      const fileData = fs.readFileSync(staticTarget.file);
+      res.writeHead(200, { 'Content-Type': staticTarget.type });
+      return res.end(fileData);
+    } catch (readErr) {
+      console.error('파일 읽기 오류:', readErr);
+    }
   }
 
-  fs.stat(safePath, (err, stats) => {
-    if (err || !stats.isFile()) {
-      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      return res.end('404 Not Found');
-    }
-
-    const ext = path.extname(safePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-
-    res.writeHead(200, { 'Content-Type': contentType });
-    fs.createReadStream(safePath).pipe(res);
-  });
+  // 404 Not Found 처리
+  res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+  return res.end('404 Not Found');
 }
 
-// [3] Vercel의 Node.js 빌더가 직접 호출할 수 있도록 핸들러 함수를 내보냅니다.
+// [4] Vercel의 Node.js 빌더가 직접 호출할 수 있도록 핸들러 함수를 내보냅니다.
 module.exports = handler;
 
-// [4] 로컬 컴퓨터에서 `node server.js`로 직접 실행할 때 3000번 포트로 구동
+// [5] 로컬 컴퓨터에서 `node server.js`로 직접 실행할 때 3000번 포트로 구동
 if (require.main === module) {
   const PORT = 3000;
   const server = http.createServer(handler);
